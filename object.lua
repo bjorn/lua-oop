@@ -5,7 +5,7 @@
 --
 -- CREATING A DERIVED CLASS
 --
---      local Human = Object:subclass {
+--      local Human = Object {
 --          name = "Anonymous",
 --          weight = 0,
 --      }
@@ -17,34 +17,29 @@
 --
 -- INSTANTIATING AN OBJECT
 --
---      local jim = Human {
+--      local jim = Human:new {
 --          name = "Jim Jimmalot"
 --          weight = "85"
 --      }
 --
 --      jim:say("Hi!")
 --
-
 --
--- Default constructor, called when class is used as a function.
--- It turns 'instance' into an instance of 'class'.
+-- OR WITHOUT PROVIDING THE INSTANCE TABLE
 --
-local function construct(class, instance)
-    assert(rawget(class, "__call"), "Trying to intantiate an instance")
-
-    setmetatable(instance, class)
-    instance:init()
-    return instance
-end
+--      jim = Human:new()
+--      jim.name = "Jim Jimmalot"
+--      jim.weight = 85
+--
 
 --
 -- It turns 'subclass' into a subclass of 'class', and prepares it to be
 -- used as metatable for instances of 'subclass'.
 --
-local function subclass(class, subclass)
+local function derive(class, subclass)
     -- The class is reused as the metatable for subclasses and instances
     subclass.__index = subclass
-    subclass.__call = construct
+    subclass.__call = derive
 
     return setmetatable(subclass, class)
 end
@@ -52,51 +47,31 @@ end
 --
 -- Bootstrap the first class into the hierarchy
 --
-local Object = subclass({
+local Object = derive({
     -- Report an error when trying to access a member that doesn't exist
     __index = function(table, key)
         error("No such member: " .. tostring(key))
     end,
-    __call = construct,
+    __call = derive
 }, {})
 
-Object.init = function() end
-Object.subclass = subclass
+--
+-- Initializes the object right after it has been instantiated. Basically the
+-- constructor.
+--
+function Object:init()
+end
 
 --
--- Returns a constructor for this class. This saves some overhead compared to
--- relying on the metatable, and can be used for classes that are frequently
--- instantiated.
+-- Instantiates an object. Either wraps the given instance table or will
+-- create one if not provided.
 --
--- A module can only return the constructor, in which case the class can no
--- longer be subclassed and members are not accessible without creating an
--- instance.
---
-function Object:constructor()
-    local constructor = rawget(self, "_constructor_")
+function Object:new(instance)
+    assert(rawget(self, "__call"), "Trying to instantiate an instance")
 
-    if not constructor then
-        assert(rawget(self, "__call"), "Instances can't have constructors")
-
-        local init = self.init
-
-        -- Avoid calling init when it's the empty default
-        if init == Object.init then
-            init = nil
-        end
-
-        constructor = function(instance)
-            setmetatable(instance, self)
-            if init then
-                init(instance)
-            end
-            return instance
-        end
-
-        self._constructor_ = constructor
-    end
-
-    return constructor
+    instance = setmetatable(instance or {}, self)
+    instance:init()
+    return instance
 end
 
 --
@@ -105,21 +80,12 @@ end
 --
 function Object:as(class)
     local meta = getmetatable(self)
-
-    if type(class) == "table" then
-        while meta do
-            if meta == class then
-                return self
-            end
-            meta = getmetatable(meta)
-        end
-    elseif type(class) == "function" then
-        -- Assuming contructor function, so class can't be a subclass
-        if rawget(meta, "_constructor_") == class then
+    while meta do
+        if meta == class then
             return self
         end
+        meta = getmetatable(meta)
     end
-
     return nil
 end
 

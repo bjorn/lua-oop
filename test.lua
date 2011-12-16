@@ -1,10 +1,9 @@
 local Object = require "object"
-
-Object {}
+local Container = require "container"
 
 local clock = os.clock
 
-local Fruit = Object:subclass {
+local Fruit = Object {
     weight = 0,
     color = "undefined",
 }
@@ -17,7 +16,7 @@ assert(rawget(getmetatable(Fruit), "__call") ~= nil, "Hmm")
 
 
 -- An apple is a special kind of fruit
-local Apple = Fruit:subclass {
+local Apple = Fruit {
     weight = 1,
     color = "green",
 }
@@ -30,7 +29,7 @@ end
 
 
 -- A fruit basket that contains fruit
-local FruitBasket = Object:subclass {}
+local FruitBasket = Object {}
 
 function FruitBasket:init()
     self.contents = {}
@@ -62,10 +61,10 @@ end
 
 assert(rawget(getmetatable(FruitBasket), "__call") ~= nil, "Hmm2")
 
-local fruitBasket = FruitBasket {}
+local fruitBasket = FruitBasket:new()
 
 for i=1,10 do
-    local apple = Apple {}
+    local apple = Apple:new()
     fruitBasket:add(apple)
 end
 
@@ -87,36 +86,24 @@ print("Apple as Apple", fruit:as(Apple))
 local start
 
 
-assert(Apple{}:as(Apple))
-
-Apple = Apple:constructor()
-
-assert(Apple{}:as(Apple))
+assert(Apple:new():as(Apple))
 
 start = clock()
 for i=1,1000000 do
-    local fruit = Apple {}
+    local fruit = Apple:new()
 end
 print("Apple creation time:", clock() - start)
 
-Point = Object:subclass {
+Point = Object {
     x = 0,
     y = 0,
 }
 
 start = clock()
 for i=1,1000000 do
-    local point = Point { x = 10, y = 20 }
+    local point = Point:new { x = 10, y = 20 }
 end
 print("Point creation time:", clock() - start)
-
-Point = Point:constructor()
-
-start = clock()
-for i=1,1000000 do
-    local point = Point { x = 10, y = 20 }
-end
-print("Point creation time (constructor):", clock() - start)
 
 start = clock()
 for i=1,1000000 do
@@ -125,7 +112,7 @@ end
 print("Point creation time (raw):", clock() - start)
 
 
-fruit = Fruit {}
+fruit = Fruit:new()
 local start = clock()
 for i=1,1000000 do
     fruit:eat()
@@ -138,7 +125,7 @@ print("Memory (base):", collectgarbage("count"))
 
 local points = {}
 for i=1,10000 do
-    points[i] = Point { x = 10, y = 20 }
+    points[i] = Point:new { x = 10, y = 20 }
 end
 
 collectgarbage("collect")
@@ -151,3 +138,27 @@ end
 
 collectgarbage("collect")
 print("Memory (raw points):", collectgarbage("count"))
+
+
+-- A polygon is a container that contains points
+local Polygon = Container {}
+
+function Polygon:length()
+    return #self
+end
+
+function Polygon:append(point)
+    self[#self + 1] = point
+end
+
+-- A square is a polygon with 4 nodes
+local Square = Polygon {
+    Point { x = 0, y = 0 },
+    Point { x = 0, y = 10 },
+    Point { x = 10, y = 10 },
+    Point { x = 10, y = 0 },
+}
+
+-- Create a square polygon and print its length
+local square = Square:new()
+print("A square polygon has length: " .. square:length())
